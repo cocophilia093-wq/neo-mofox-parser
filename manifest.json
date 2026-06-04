@@ -1,0 +1,53 @@
+{
+    "name": "parser",
+    "display_name": "通用链接解析器",
+    "version": "1.5.1",
+    "description": "通用链接解析插件：解析 14 平台（B 站 / 抖音 / 微博 / 小红书 / 知乎 / TikTok / Twitter / YouTube / Instagram / Acfun / NCM / NGA / 快手 / 小黑盒）链接，自动渲染信息卡片、下载视频/图片/音频，支持合并转发与多 Bot 仲裁。",
+    "author": "coco",
+    "license": "GPL-3.0",
+    "dependencies": {
+        "plugins": [],
+        "components": []
+    },
+    "include": [
+        {
+            "component_type": "event_handler",
+            "component_name": "parser_message",
+            "dependencies": [],
+            "enabled": true
+        },
+        {
+            "component_type": "command",
+            "component_name": "开启解析",
+            "dependencies": [],
+            "enabled": true
+        },
+        {
+            "component_type": "command",
+            "component_name": "关闭解析",
+            "dependencies": [],
+            "enabled": true
+        },
+        {
+            "component_type": "command",
+            "component_name": "登录B站",
+            "dependencies": [],
+            "enabled": true
+        }
+    ],
+    "entry_point": "plugin.py",
+    "min_core_version": "1.0.0",
+    "python_dependencies": [
+        "aiohttp",
+        "aiofiles",
+        "yt-dlp",
+        "msgspec",
+        "tqdm",
+        "apscheduler",
+        "bilibili-api-python",
+        "curl_cffi",
+        "Pillow",
+        "apilmoji"
+    ],
+    "dependencies_required": true
+}
