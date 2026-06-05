@@ -131,7 +131,7 @@ class AcfunParser(BaseParser):
 
         except ClientError:
             await safe_unlink(video_file)
-            logger.exception("视频下载失败")
+            logger.error("视频下载失败", exc_info=True)
             raise DownloadException("视频下载失败")
         return video_file
 

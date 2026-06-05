@@ -45,7 +45,7 @@ class CacheCleaner:
             self.cfg.cache_dir.mkdir(parents=True, exist_ok=True)
             logger.info("Cache directory cleaned and recreated.")
         except Exception:
-            logger.exception("Error while cleaning cache directory.")
+            logger.error("Error while cleaning cache directory.", exc_info=True)
 
     async def stop(self):
         self.scheduler.remove_all_jobs()

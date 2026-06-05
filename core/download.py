@@ -146,7 +146,7 @@ class Downloader:
                 if attempt < retries:
                     await sleep(1 + attempt)
                     continue
-                logger.exception(f"下载失败 | url: {url}, file_path: {file_path}")
+                logger.error(f"下载失败 | url: {url}, file_path: {file_path}", exc_info=True)
                 raise DownloadException("媒体下载失败") from exc
         raise DownloadException("媒体下载失败")
 

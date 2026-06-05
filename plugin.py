@@ -44,7 +44,7 @@ class ParserPlugin(BasePlugin):
 
     plugin_name: str = "parser"
     plugin_description: str = "通用链接解析插件，支持 14 平台链接解析与多 Bot 仲裁"
-    plugin_version: str = "1.5.1"
+    plugin_version: str = "1.5.2"
 
     configs: list[type] = [ParserBaseConfig]
     dependent_components: list[str] = []
