@@ -187,18 +187,17 @@ class MessageSender:
         if render_card_override is not None:
             render_card = render_card_override
 
-        # napcat adapter 的直发路径（send_video）不支持本地文件视频段，
-        # 只有合并转发节点能透传 file:// URI。因此只要存在视频，强制走合并转发。
+        # 视频直接走 send_video，避免合并转发把媒体塞进 WebSocket 导致 message too big。
         has_video = any(
             isinstance(c, (VideoContent, DynamicContent)) for c in heavy
         )
 
         seg_count = len(light) + len(heavy) + (1 if render_card else 0)
         force_merge = seg_count >= self.cfg.forward_threshold
-        if has_video:
-            force_merge = True
         if force_merge_override is not None:
             force_merge = force_merge_override
+        if has_video:
+            force_merge = False
 
         return {
             "light": light,
@@ -377,7 +376,14 @@ class MessageSender:
 
         path: Path = payload  # type: ignore[assignment]
 
-        # 媒体文件用 base64 内联，避免跨文件系统（Windows↔Docker）路径不可达
+        if kind == "video":
+            return await send_video(
+                self._to_file_path_str(path),
+                stream_id=ctx.stream_id,
+                platform=ctx.platform,
+            )
+
+        # 其他媒体文件用 base64 内联，避免跨文件系统（Windows↔Docker）路径不可达
         b64 = _file_to_base64_uri(path)
         if b64 is None:
             logger.warning(f"[parser] 直发媒体过大或读取失败: {path.name}")
@@ -385,8 +391,6 @@ class MessageSender:
 
         if kind == "image":
             return await send_image(b64, stream_id=ctx.stream_id, platform=ctx.platform)
-        if kind == "video":
-            return await send_video(b64, stream_id=ctx.stream_id, platform=ctx.platform)
         if kind == "voice":
             return await send_voice(b64, stream_id=ctx.stream_id, platform=ctx.platform)
         if kind == "file":
