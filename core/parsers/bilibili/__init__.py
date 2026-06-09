@@ -415,12 +415,52 @@ class BilibiliParser(BaseParser):
         # 获取下载数据
         download_url_data = await video.get_download_url(page_index=page_index)
         detecter = VideoDownloadURLDataDetecter(download_url_data)
-        streams = detecter.detect_best_streams(
-            video_max_quality=self.video_quality,
-            codecs=self.video_codecs,
-            no_dolby_video=True,
-            no_hdr=True,
-        )
+
+        # bilibili_api 的 detect_best_streams 内部排序时可能遇到
+        # video_codecs=None 的流，导致 AttributeError。
+        # 先尝试原库最佳选流，失败则绕过 detect_best_streams 手动选流。
+        try:
+            streams = detecter.detect_best_streams(
+                video_max_quality=self.video_quality,
+                codecs=self.video_codecs,
+                no_dolby_video=True,
+                no_hdr=True,
+            )
+        except AttributeError as e:
+            logger.warning(f"[parser] detect_best_streams 失败: {e}，改用手动选流")
+            all_streams = detecter.detect(
+                video_max_quality=self.video_quality,
+                codecs=self.video_codecs,
+                no_dolby_video=True,
+                no_hdr=True,
+            )
+            video_streams = [
+                stream
+                for stream in all_streams
+                if isinstance(stream, VideoStreamDownloadURL)
+            ]
+            audio_streams = [
+                stream
+                for stream in all_streams
+                if isinstance(stream, AudioStreamDownloadURL)
+            ]
+            codec_rank = {codec: index for index, codec in enumerate(self.video_codecs)}
+            video_stream = max(
+                video_streams,
+                key=lambda stream: (
+                    stream.video_quality.value,
+                    -codec_rank.get(stream.video_codecs, len(codec_rank)),
+                    stream.video_codecs is not None,
+                ),
+                default=None,
+            )
+            audio_stream = max(
+                audio_streams,
+                key=lambda stream: stream.audio_quality.value,
+                default=None,
+            )
+            streams = [video_stream, audio_stream]
+
         video_stream = streams[0]
         if not isinstance(video_stream, VideoStreamDownloadURL):
             raise DownloadException("未找到可下载的视频流")

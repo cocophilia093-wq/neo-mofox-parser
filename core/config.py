@@ -98,6 +98,14 @@ class ParserBaseConfig(BaseConfig):
             default=True,
             description="是否发送下载失败相关提示",
         )
+        file_send_path_mode: str = Field(
+            default="windows",
+            description="文件发送路径模式：windows=使用原始 Windows 路径；wsl=转换为 /mnt/c/...；custom=把 cache_dir 替换为 file_send_custom_cache_dir",
+        )
+        file_send_custom_cache_dir: str = Field(
+            default="",
+            description="custom 模式下 NapCat/OneBot 可访问的 cache 目录，例如 /root/parser_cache",
+        )
 
     @config_section("network")
     class NetworkSection(SectionBase):
@@ -254,6 +262,8 @@ class PluginConfig:
         self.single_heavy_render_card: bool = bool(base.send.single_heavy_render_card)
         self.forward_threshold: int = int(base.send.forward_threshold)
         self.show_download_fail_tip: bool = bool(base.send.show_download_fail_tip)
+        self.file_send_path_mode: str = str(base.send.file_send_path_mode or "windows").lower()
+        self.file_send_custom_cache_dir: str = str(base.send.file_send_custom_cache_dir or "")
 
         self.download_timeout: int = int(base.network.download_timeout)
         self.download_retry_times: int = int(base.network.download_retry_times)

@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import base64
+from contextlib import suppress
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
@@ -23,7 +24,6 @@ from src.app.plugin_system.api.send_api import (
     send_file,
     send_image,
     send_text,
-    send_video,
     send_voice,
 )
 
@@ -145,9 +145,32 @@ class MessageSender:
 
     @staticmethod
     def _to_file_path_str(path: Path) -> str:
-        """Neo-MoFox send_video / send_voice 等需要本地路径，而 OneBot 段需要 file:// URI。"""
+        """返回本机文件路径字符串。"""
         if not path.is_absolute():
             path = path.resolve()
+        return str(path)
+
+    def _to_send_file_path_str(self, path: Path) -> str:
+        """按配置转换为 OneBot/NapCat 可访问的文件路径。"""
+        if not path.is_absolute():
+            path = path.resolve()
+
+        mode = self.cfg.file_send_path_mode
+        if mode == "wsl":
+            drive = path.drive.rstrip(":").lower()
+            if drive:
+                parts = path.parts[1:]
+                return "/mnt/" + drive + "/" + "/".join(parts)
+            return path.as_posix()
+
+        if mode == "custom" and self.cfg.file_send_custom_cache_dir:
+            cache_dir = self.cfg.cache_dir.resolve()
+            try:
+                relative = path.relative_to(cache_dir)
+            except ValueError:
+                return str(path)
+            return str(Path(self.cfg.file_send_custom_cache_dir) / relative).replace("\\", "/")
+
         return str(path)
 
     @staticmethod
@@ -187,7 +210,7 @@ class MessageSender:
         if render_card_override is not None:
             render_card = render_card_override
 
-        # 视频直接走 send_video，避免合并转发把媒体塞进 WebSocket 导致 message too big。
+        # 视频直接按文件发送，避免合并转发把媒体塞进 WebSocket 导致 message too big。
         has_video = any(
             isinstance(c, (VideoContent, DynamicContent)) for c in heavy
         )
@@ -377,11 +400,22 @@ class MessageSender:
         path: Path = payload  # type: ignore[assignment]
 
         if kind == "video":
-            return await send_video(
-                self._to_file_path_str(path),
-                stream_id=ctx.stream_id,
-                platform=ctx.platform,
+            mapped_path = self._to_send_file_path_str(path)
+            logger.info(
+                f"[parser] 视频文件发送路径: mode={self.cfg.file_send_path_mode}, "
+                f"local={path}, send={mapped_path}"
             )
+            try:
+                return await send_file(
+                    mapped_path,
+                    stream_id=ctx.stream_id,
+                    platform=ctx.platform,
+                    file_name=path.name,
+                )
+            finally:
+                with suppress(OSError):
+                    path.unlink(missing_ok=True)
+
 
         # 其他媒体文件用 base64 内联，避免跨文件系统（Windows↔Docker）路径不可达
         b64 = _file_to_base64_uri(path)
